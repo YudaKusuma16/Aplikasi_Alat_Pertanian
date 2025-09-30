@@ -41,6 +41,8 @@ class MainActivity : AppCompatActivity() {
 
     private var selectedImageUri: Uri? = null
     private var isUploadingImage = false
+    private var isEditing = false
+    private var currentEditingId: String? = null
 
     // Register untuk permission launcher (cara modern)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -128,8 +130,13 @@ class MainActivity : AppCompatActivity() {
                 val price = priceText.toDouble()
                 val stock = stockText.toInt()
 
-                // Tambah produk ke Firestore
-                addProductToFirestore(name, price, stock, description)
+                if (isEditing) {
+                    // Update produk yang sudah ada
+                    updateProductInFirestore(currentEditingId!!, name, price, stock, description)
+                } else {
+                    // Tambah produk baru ke Firestore
+                    addProductToFirestore(name, price, stock, description)
+                }
 
             } catch (e: NumberFormatException) {
                 Toast.makeText(this, "Format harga atau stok tidak valid!", Toast.LENGTH_SHORT).show()
@@ -218,6 +225,52 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateProductInFirestore(documentId: String, name: String, price: Double, stock: Int, description: String) {
+        progressBar.visibility = View.VISIBLE
+        btnAddProduct.isEnabled = false
+
+        if (selectedImageUri != null) {
+            // Upload gambar baru terlebih dahulu
+            uploadImageToFirebaseStorage { imageUrl ->
+                updateProductInFirestore(documentId, name, price, stock, description, imageUrl)
+            }
+        } else {
+            // Update produk tanpa mengubah gambar
+            updateProductInFirestore(documentId, name, price, stock, description, null)
+        }
+    }
+
+    private fun updateProductInFirestore(documentId: String, name: String, price: Double, stock: Int, description: String, imageUrl: String?) {
+        val updatedProduct = hashMapOf<String, Any>(
+            "name" to name,
+            "price" to price,
+            "stock" to stock,
+            "description" to description
+        )
+
+        // Jika ada imageUrl baru, tambahkan ke data yang diupdate
+        imageUrl?.let {
+            updatedProduct["imageUrl"] = it
+        }
+
+        db.collection("products")
+            .document(documentId)
+            .update(updatedProduct)
+            .addOnSuccessListener {
+                Log.d("Firestore", "Produk berhasil diupdate dengan ID: $documentId")
+                Toast.makeText(this, "Produk $name berhasil diupdate!", Toast.LENGTH_SHORT).show()
+                resetForm()
+            }
+            .addOnFailureListener { e ->
+                Log.w("Firestore", "Gagal mengupdate produk", e)
+                Toast.makeText(this, "Gagal mengupdate produk!", Toast.LENGTH_SHORT).show()
+            }
+            .addOnCompleteListener {
+                progressBar.visibility = View.GONE
+                btnAddProduct.isEnabled = true
+            }
+    }
+
     private fun uploadImageToFirebaseStorage(onComplete: (String) -> Unit) {
         selectedImageUri?.let { uri ->
             isUploadingImage = true
@@ -267,9 +320,7 @@ class MainActivity : AppCompatActivity() {
             .addOnSuccessListener { documentReference ->
                 Log.d("Firestore", "Produk berhasil ditambahkan dengan ID: ${documentReference.id}")
                 Toast.makeText(this, "Produk $name berhasil ditambahkan!", Toast.LENGTH_SHORT).show()
-
-                // Clear input fields
-                clearInputFields()
+                resetForm()
             }
             .addOnFailureListener { e ->
                 Log.w("Firestore", "Gagal menambahkan produk", e)
@@ -322,6 +373,7 @@ class MainActivity : AppCompatActivity() {
         val tvStock = productItemView.findViewById<TextView>(R.id.tvProductStock)
         val tvDescription = productItemView.findViewById<TextView>(R.id.tvProductDescription)
         val ivProductImage = productItemView.findViewById<ImageView>(R.id.ivProductImage)
+        val btnEdit = productItemView.findViewById<Button>(R.id.btnEdit)
         val btnDelete = productItemView.findViewById<Button>(R.id.btnDelete)
 
         tvName.text = product.name
@@ -340,6 +392,10 @@ class MainActivity : AppCompatActivity() {
             ivProductImage.setImageResource(R.drawable.ic_placeholder)
         }
 
+        btnEdit.setOnClickListener {
+            editProduct(documentId, product)
+        }
+
         btnDelete.setOnClickListener {
             deleteProduct(documentId)
         }
@@ -347,17 +403,63 @@ class MainActivity : AppCompatActivity() {
         containerProducts.addView(productItemView)
     }
 
+    private fun editProduct(documentId: String, product: Product) {
+        // Set mode editing
+        isEditing = true
+        currentEditingId = documentId
+
+        // Isi form dengan data produk yang akan diedit
+        etProductName.setText(product.name)
+        etProductPrice.setText(product.price.toString())
+        etProductStock.setText(product.stock.toString())
+        etProductDescription.setText(product.description)
+
+        // Load gambar jika ada
+        if (product.imageUrl.isNotEmpty()) {
+            Glide.with(this)
+                .load(product.imageUrl)
+                .centerCrop()
+                .into(ivProductImage)
+            tvImageStatus.text = "Gambar produk saat ini"
+        } else {
+            ivProductImage.setImageResource(R.drawable.ic_add_photo)
+            tvImageStatus.text = "Belum ada gambar yang dipilih"
+        }
+
+        // Ubah teks tombol menjadi "Update Produk"
+        btnAddProduct.text = "Update Produk"
+
+        // Scroll ke atas untuk melihat form
+        findViewById<ScrollView>(R.id.scrollView).smoothScrollTo(0, 0)
+
+        Toast.makeText(this, "Mengedit produk: ${product.name}", Toast.LENGTH_SHORT).show()
+    }
+
     private fun deleteProduct(documentId: String) {
-        db.collection("products")
-            .document(documentId)
-            .delete()
-            .addOnSuccessListener {
-                Toast.makeText(this, "Produk berhasil dihapus!", Toast.LENGTH_SHORT).show()
+        AlertDialog.Builder(this)
+            .setTitle("Hapus Produk")
+            .setMessage("Apakah Anda yakin ingin menghapus produk ini?")
+            .setPositiveButton("Hapus") { dialog, which ->
+                db.collection("products")
+                    .document(documentId)
+                    .delete()
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "Produk berhasil dihapus!", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Gagal menghapus produk!", Toast.LENGTH_SHORT).show()
+                        Log.w("Firestore", "Error deleting document", e)
+                    }
             }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Gagal menghapus produk!", Toast.LENGTH_SHORT).show()
-                Log.w("Firestore", "Error deleting document", e)
-            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun resetForm() {
+        isEditing = false
+        currentEditingId = null
+        btnAddProduct.text = "Tambah Produk"
+        clearInputFields()
     }
 
     private fun clearInputFields() {
