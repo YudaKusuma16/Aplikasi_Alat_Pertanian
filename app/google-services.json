@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "213884028559",
+    "project_id": "aplikasialatpertanian",
+    "storage_bucket": "aplikasialatpertanian.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:213884028559:android:e43da948467b5c310f12fa",
+        "android_client_info": {
+          "package_name": "com.example.aplikasialatpertanian"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANY_aYcLirBnmaMvOog1_9wRaiRJjhenc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

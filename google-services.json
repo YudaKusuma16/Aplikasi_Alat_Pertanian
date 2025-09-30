@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1025423795335",
+    "firebase_url": "https://aplikasi-penjualan-pertanian-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "aplikasi-penjualan-pertanian",
+    "storage_bucket": "aplikasi-penjualan-pertanian.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1025423795335:android:c141f3b3642d958d4d0422",
+        "android_client_info": {
+          "package_name": "com.example.aplikasialatpertanian"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDev0c-_SFkUy3drsTZ0Li1YpAAJIBRQus"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
